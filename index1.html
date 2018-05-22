@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test</title>
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <!--[if lt IE 9]>
+      <script src="https://cdn.bootcss.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <h1>你好，世界！</h1>
+    
+    <form role="form" class="form-horizontal">
+    <div class="form-group">
+        <div class="col-xs-8">
+            <input  id="search" class="form-control" type="text" placeholder="输入查询码">
+            <span class="help-block">测试地址：n1PusDvE6AfDrqTHJJqwakpNFpasew78FaP</span>
+        </div>
+        <div class="col-xs-4">
+            <button id="submiSearch" class="btn btn-success" type="button" onclick="searchPromise();">查询</button>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="col-xs-4">
+            <input id="keyStore" class="form-control" type="file" accept="application/json">
+        </div>
+        <div class="col-xs-4">
+            <input id="password" class="form-control" type="text" placeholder="请输入密码">
+        </div>
+        <div class="col-xs-4">
+            <button id="submiSave" class="btn btn-success" type="button" onclick="savePromise();">提交</button>
+        </div>
+    </div>  
+    </form>
+
+    <!-- <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script> -->
+    <!-- <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+    <script src="nebulas.js"></script>
+    <script  type="text/javascript">
+        'use strict';
+		var HttpRequest = require("nebulas").HttpRequest;
+		var Neb = require("nebulas").Neb;
+		var Account = require("nebulas").Account;
+        var Transaction = require("nebulas").Transaction;
+        var contractAddress = 'n1rTUeonxeRCGGRHPN6mvWsd4pVsWfSNMaX';
+		
+		// 连接网络
+		var neb = new Neb();
+		var chainId = 1001;
+		var netWork = "https://testnet.nebulas.io"
+        neb.setRequest(new HttpRequest(netWork));
+        
+        /************************************* 查询 *******************************************/
+        // 调用查询合约
+        var callTransaction = function(accountAddress, contractAddress, functionName, functionArgs) {
+            neb.api.call({
+                chainID: chainId,
+                from: accountAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: functionName,
+                    args: JSON.stringify(functionArgs),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
+        // 查询函数
+        function searchPromise() {
+            var address = document.getElementById('search').value;
+            if (address === "") {
+                alert("请输入内容！");
+            } else {
+                callTransaction(address, contractAddress, "search", [address]);
+            };
+        };
+
+        /************************************* 存储 *******************************************/
+        // 导入账户
+		var initAccount = function(key, passphrase) {
+			var promise = new Promise(function(resolve, reject){
+                var account = new Account();
+                account.fromKey(key, passphrase);
+				var ss = account.getAddressString();
+				console.log("导入账户成功，地址为：" + ss);
+				resolve(account);
+			});
+			return promise;
+		}
+        
+        // 生成合约交易
+        var generateContractTransaction = function(account, contractAddress, functionName, functionArgs) {
+            var promise = new Promise(function(resolve, reject){
+                neb.api.getAccountState(account.getAddressString()).then(function(state) {
+                    var nonce = parseInt(state.nonce) + 1;
+                    var tx = new Transaction({
+                        chainID: chainId,
+                        from: account,
+                        to: contractAddress,
+                        value: 0,
+                        nonce: nonce,
+                        gasPrice: 1000000,
+                        gasLimit: 100000,
+                        contract:{
+                            function: functionName,
+                            args: JSON.stringify(functionArgs)
+                        }
+                    });
+                    tx.signTransaction();
+                    console.log(JSON.stringify(functionArgs));
+                    console.log('正在生成合约调用 from:' + account.getAddressString() + ' 调用方法:' + functionName)
+                    resolve(tx.toProtoString());
+                }).catch(function(err) {
+                    console.log(err);
+                });
+            });
+            return promise;
+        }
+
+        // 提交交易数据
+        var submitTransaction = function(data) {
+            var promise = new Promise(function(resolve, reject){
+                neb.api.sendRawTransaction(data).then(function (resp) {
+                    resp = resp.result || resp;
+                    var txhash = resp.txhash;
+                    console.log('交易提交成功，txhash:' + txhash);
+                }).catch(function (err) {
+                    console.log(err);
+                })
+            });
+            return promise;
+        }
+
+        // 读取上传的本地json文件
+        function readKey() {
+			var promise = new Promise (function(resolve, reject) { 
+				var keyStore = document.getElementById("keyStore").files[0];
+				var oFReader = new FileReader();  
+				oFReader.readAsText(keyStore);
+				oFReader.onloadend = function(oFRevent){  
+					var key = oFRevent.target.result;
+					resolve(key);
+				}
+			});
+			return promise;
+		};
+        
+        //存储函数
+        function savePromise() {
+            var args = ["aaron", "shitao", "hello world!"];
+            var passphrase = document.getElementById('password').value;
+            if (passphrase === ""){
+                alert('请输入密码');
+            }else{
+                readKey().then(function(key) {
+                    initAccount(key, passphrase).then(function(account) {
+                        return generateContractTransaction(account, contractAddress, "save", args);
+                    }).then(function(value) {
+                        return submitTransaction(value);
+                    })
+                });
+            }
+        }
+    </script>
+  </body>
+</html>

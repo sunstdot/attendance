@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test</title>
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <!--[if lt IE 9]>
+      <script src="https://cdn.bootcss.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>   
+    <form role="form" class="form-horizontal" style="text-align: center">
+        <div class="form-group" id="content">
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="morning();">打卡</button>
+            </div>
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="stop();">领奖</button>
+            </div>
+        </div>
+    </form>
+
+    <!-- <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script> -->
+    <!-- <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+    <script src="../lib/nebulas.js"></script>
+    <script src="../lib/nebPay.js"></script>
+    <script  type="text/javascript">
+        'use strict';
+		var Neb = require("nebulas").Neb;
+		var HttpRequest = require("nebulas").HttpRequest
+		var NebPay = require("nebpay");
+		var nebPay = new NebPay(); 
+		var contractAddress = "n1zJs5Vpcj3nc3mPpb4zwxy872J3VaSXxiY";
+		var intervalQuery;
+
+		var neb = new Neb();
+		//var chainId = 1;
+		//var netWork = "https://mainnet.nebulas.io"
+		var chainId = 1001;
+		var netWork = "https://testnet.nebulas.io"
+		neb.setRequest(new HttpRequest(netWork));
+        
+        /************************************* 查询 *******************************************/
+        function morning() {
+            var time = new Date().getTime(); //打卡时间戳
+            var date = '26'; //打卡日期
+            var success = '1'; // 1代表成功，0代表不成功 打卡是否成功(每天7:30算成功，这个可以自己设定，并显示到网页上！)
+            var args = [time, date, success]
+            
+            var to = contractAddress;
+            var value = '0'; 
+            var callFunction = "morning";
+            var callArgs =  JSON.stringify(args);     
+            var options = {
+                listener: function (resp) {
+                    intervalQuery = setInterval(function() {
+                        dakaQuery(resp.txhash, success);
+                    }, 5000);
+                }
+            }
+            document.getElementById("content").innerHTML = `
+                <h1>请到 浏览器插件 中完成操作</h1>`
+            nebPay.call(to, value, callFunction, callArgs, options);
+        }
+
+		function dakaQuery(txhash, success) {
+			receiptTransaction(txhash).then(function(resp){
+				console.log(resp)
+				var respObject = resp;
+				if (respObject.status == 1){
+					clearInterval(intervalQuery);
+					var execute_result = resp.execute_result;
+					var result = JSON.parse(execute_result)
+					console.log(result)
+					if (result == 0) {
+						document.getElementById("content").innerHTML = `
+                            <h1>本轮打开还没开放，现在不能打卡</h1>`
+	
+					} else if (result == 2) {
+						document.getElementById("content").innerHTML = `
+                            <h1>您今天已经打过卡，不能重复打卡</h1>`
+					} else{
+                        var date_list = result.date;// 数组，本轮打卡中成功打卡的时间，时间戳格式，如果要展示需要你解析
+                        var count = result.count; //本轮打卡中，成功打卡次数
+                        if (success == 1){
+                            document.getElementById("content").innerHTML = `
+                            <h1>今日打卡成功，您已坚持${count}天，继续加油</h1>`
+                        } else {
+                            document.getElementById("content").innerHTML = `
+                            <h1>今日打卡失败，您已坚持${count}天，明天早点来哦！</h1>`
+                        }
+                    }
+				} else if (respObject.status == 0) {
+					clearInterval(intervalQuery)
+					var error = resp.execute_error
+					document.getElementById("content").innerHTML = `
+						<h1>${error}</h1>`
+				}
+				
+			}).catch(function(err){
+				clearInterval(intervalQuery)
+				console.log(err);
+				document.getElementById("content").innerHTML = `
+						<h1>${err}</h1>`
+			})
+        }
+        
+        function stop() {
+            var args = [];
+            var to = contractAddress;
+            var value = '0'; 
+            var callFunction = "stop";
+            var callArgs =  JSON.stringify(args);     
+            var options = {
+                listener: function (resp) {
+                    intervalQuery = setInterval(function() {
+                        stopQuery(resp.txhash);
+                    }, 5000);
+                }
+            }
+            document.getElementById("content").innerHTML = `
+                <h1>请到 浏览器插件 中完成操作</h1>`
+            nebPay.call(to, value, callFunction, callArgs, options);
+        }
+
+        function stopQuery(txhash) {
+			receiptTransaction(txhash).then(function(resp){
+				console.log(resp)
+				var respObject = resp;
+				if (respObject.status == 1){
+					clearInterval(intervalQuery);
+					var execute_result = resp.execute_result;
+					var result = JSON.parse(execute_result)
+					console.log(result)
+					if (result == 0) {
+						document.getElementById("content").innerHTML = `
+                            <h1>没有您的打卡记录！</h1>`
+	
+					} else if (result == 2) {
+						document.getElementById("content").innerHTML = `
+                            <h1>新一轮打卡开始，本轮奖金已失效，下一次来哦！</h1>`
+					} else{
+                        var reward = result.reward
+                        var date_list = result.date;// 数组，本轮打卡中成功打卡的时间，时间戳格式，如果要展示需要你解析
+                        var count = result.count; //本轮打卡中，成功打卡次数
+                        if (reward == 0){
+                            document.getElementById("content").innerHTML = `
+                            <h1>您本轮打卡失败，下次继续努力吧！</h1>
+                            <h1>您本轮共成功打卡${count}天，打卡时间分别为:</h1>
+                            <h1>data_list里的时间</h1>`
+                        } else {
+                            var demicals = 1e18;
+                            document.getElementById("content").innerHTML = `
+                            <h1>您本轮打卡成功，获得奖金${reward/demicals}NAS</h1>
+                            <h1>您本轮共成功打卡${count}天，打卡时间分别为:</h1>
+                            <h1>data_list里的时间</h1>`
+                        }
+                    }
+				} else if (respObject.status == 0) {
+					clearInterval(intervalQuery)
+					var error = resp.execute_error
+					document.getElementById("content").innerHTML = `
+						<h1>${error}</h1>`
+				}
+				
+			}).catch(function(err){
+				clearInterval(intervalQuery)
+				console.log(err);
+				document.getElementById("content").innerHTML = `
+						<h1>${err}</h1>`
+			})
+        }
+        
+        function receiptTransaction(txhash) {
+			var promise = new Promise(function(resolve, reject){
+				neb.api.getTransactionReceipt(txhash).then(function (resp) {
+					resolve(resp);
+				}).catch(function(err) {
+					console.log(err);
+				});
+			});
+			return promise
+		}
+		
+    </script>
+  </body>
+</html>

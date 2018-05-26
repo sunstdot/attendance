@@ -22,6 +22,16 @@
             </div>
         </div>
     </form>
+    <form role="form" class="form-horizontal" style="text-align: center">
+        <div class="form-group" id="content">
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="totalAmount();">打卡总人数</button>
+            </div>
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="todayAmount();">今日打卡人数</button>
+            </div>
+        </div>
+    </form>
 
     <!-- <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script> -->
     <!-- <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
@@ -33,7 +43,7 @@
 		var HttpRequest = require("nebulas").HttpRequest
 		var NebPay = require("nebpay");
 		var nebPay = new NebPay(); 
-		var contractAddress = "n1zJs5Vpcj3nc3mPpb4zwxy872J3VaSXxiY";
+		var contractAddress = "n1efyyHLvDnaT5isUAVxhZN23uTAkHxybPD";
 		var intervalQuery;
 
 		var neb = new Neb();
@@ -185,6 +195,54 @@
 			return promise
 		}
 		
+        /************************************* 人数 *******************************************/
+        function totalAmount() {
+            neb.api.call({
+                chainID: chainId,
+                from: contractAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "totalAmount",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var amount = resp.result;
+                document.getElementById("content").innerHTML = `
+                            <h1>参与打卡总人数${amount}</h1>`
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
+        function todayAmount() {
+            neb.api.call({
+                chainID: chainId,
+                from: contractAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "todayAmount",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var amount = resp.result;
+                document.getElementById("content").innerHTML = `
+                            <h1>今日打卡总人数${amount}</h1>`
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+        
+      
     </script>
   </body>
 </html>

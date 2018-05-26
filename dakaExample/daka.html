@@ -219,6 +219,32 @@
             })
         }
 
+        function value() {
+            neb.api.call({
+                chainID: chainId,
+                from: contractAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "value",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var result = JSON.parse(resp.result);
+                var totalValue = result.totalValue;
+                var perValue = result.perValue;
+                document.getElementById("content").innerHTML = `
+                            <h1>总金额${totalValue}</h1>
+                            <h1>每人金额${perValue}</h1>`
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
         // 本期总金额
         function totalValue() {
             neb.api.call({

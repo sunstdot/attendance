@@ -219,6 +219,56 @@
             })
         }
 
+        // 本期总金额
+        function totalValue() {
+            neb.api.call({
+                chainID: chainId,
+                from: contractAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "totalValue",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var totalValue = resp.result;
+                document.getElementById("content").innerHTML = `
+                            <h1>本期总奖金${totalValue}</h1>`
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
+        // 每人金额
+        function perValue() {
+            neb.api.call({
+                chainID: chainId,
+                from: contractAddress,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "perValue",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var perValue = resp.result;
+                document.getElementById("content").innerHTML = `
+                            <h1>本期总奖金${perValue}</h1>`
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
+
+
 
     </script>
   </body>

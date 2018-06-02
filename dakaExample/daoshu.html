@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Test</title>
+    <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <!--[if lt IE 9]>
+      <script src="https://cdn.bootcss.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://cdn.bootcss.com/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  <body>   
+    <form role="form" class="form-horizontal" style="text-align: center">
+        <div class="form-group" id="content">
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="tianjia();">添加</button>
+            </div>
+            <div class="col-xs-4">
+                <button class="btn btn-success btn-block" type="button" onclick="chaxun();">查询</button>
+            </div>
+        </div>
+    </form>
+    <!-- <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script> -->
+    <!-- <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script> -->
+    <script src="../lib/nebulas.js"></script>
+    <script src="../lib/nebPay.js"></script>
+    <script  type="text/javascript">
+        'use strict';
+		var Neb = require("nebulas").Neb;
+		var HttpRequest = require("nebulas").HttpRequest
+		var NebPay = require("nebpay");
+		var nebPay = new NebPay(); 
+		var contractAddress = "n1g2qPCDesNPzSg4bNGouz7y8x539JCb4AN";
+		var intervalQuery;
+
+		var neb = new Neb();
+		var chainId = 1;
+		var netWork = "https://mainnet.nebulas.io"
+		//var chainId = 1001;
+		//var netWork = "https://testnet.nebulas.io"
+		neb.setRequest(new HttpRequest(netWork));
+        
+        /************************************* 存储 *******************************************/
+        function tianjia() {
+            var date = "20180621";
+            var title = "";
+            var content = "结婚纪念日";
+            var email = "1234567@qq.com"
+            var args = [date, title, content, email]
+            
+            var to = contractAddress;
+            var value = '0'; 
+            var callFunction = "save";
+            var callArgs =  JSON.stringify(args);     
+            var options = {
+                listener: function (resp) {
+                    intervalQuery = setInterval(function() {
+                        resultQuery(resp.txhash);
+                    }, 5000);
+                }
+            }
+            document.getElementById("content").innerHTML = `
+                <h1>请到 浏览器插件 中完成操作</h1>`
+            nebPay.call(to, value, callFunction, callArgs, options);
+        }
+
+		function resultQuery(txhash, success) {
+			receiptTransaction(txhash).then(function(resp){
+				console.log(resp)
+				var respObject = resp;
+				if (respObject.status == 1){
+					clearInterval(intervalQuery);
+					var execute_result = resp.execute_result;
+					var result = JSON.parse(execute_result)
+					console.log(result)
+					if (result == 1) {
+						document.getElementById("content").innerHTML = `
+                            <h1>添加成功</h1>`
+	
+					} 
+				} else if (respObject.status == 0) {
+					clearInterval(intervalQuery)
+					var error = resp.execute_error
+					document.getElementById("content").innerHTML = `
+						<h1>${error}</h1>`
+				}
+				
+			}).catch(function(err){
+				clearInterval(intervalQuery)
+				console.log(err);
+				document.getElementById("content").innerHTML = `
+						<h1>${err}</h1>`
+			})
+        }
+    
+        function receiptTransaction(txhash) {
+			var promise = new Promise(function(resolve, reject){
+				neb.api.getTransactionReceipt(txhash).then(function (resp) {
+					resolve(resp);
+				}).catch(function(err) {
+					console.log(err);
+				});
+			});
+			return promise
+		}
+		
+        /************************************* 查询 *******************************************/
+        function chaxun() {
+            //var address = document.getElementById("input").value.trim();
+            var address = "n1GSnRgFYKYyHuJKT6CMTdvz2BkMtabRYtp"
+            neb.api.call({
+                chainID: chainId,
+                from: address,
+                to: contractAddress,
+                value: 0,
+                nonce: 0,
+                gasPrice: 1000000,
+                gasLimit: 2000000,
+                contract: {
+                    function: "getByUser",
+                    args: JSON.stringify([]),
+                }
+            }).then(function (resp) {
+                console.log(resp);
+                var result = JSON.parse(resp.result);
+                console.log(result)
+                if (result == 0){
+                    document.getElementById("content").insertAdjacentHTML('beforeend', "您还没有添加内容！") 
+                } else{
+                    document.getElementById("content").innerHTML = ''
+                    for (var i = 0; i< result.length; i++){
+                        var c = `<h5>${result[i].date}-${result[i].title}-${result[i].content}-${result[i].email}</h5>`
+                        document.getElementById("content").insertAdjacentHTML('beforeend', c)              
+                    }
+                }
+            }).catch(function(err) {
+                console.log(err);
+            })
+        }
+
+    </script>
+  </body>
+</html>
